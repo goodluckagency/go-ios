@@ -78,6 +78,12 @@ func (r *Receiver) Close() error {
 	return r.conn.Close()
 }
 
+// WriteTo sends a datagram from the receiver's socket, so RTCP feedback leaves
+// from the address the device streams to.
+func (r *Receiver) WriteTo(b []byte, ip string, port int) (int, error) {
+	return r.conn.WriteToUDP(b, &net.UDPAddr{IP: net.ParseIP(ip), Port: port})
+}
+
 // hostTunnelAddress returns the host's address on the tunnel. Dialing sends
 // nothing; it just makes the OS bind the local address the device can reach.
 func hostTunnelAddress(device ios.DeviceEntry) (net.IP, error) {
