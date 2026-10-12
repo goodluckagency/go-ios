@@ -19,8 +19,9 @@ import (
 // malformed offers with an opaque "Invalid Parameter", so this fixture is the
 // only cheap way to catch encoder drift.
 //
-// The capture had LTRP enabled and FEC disabled; the default here is the inverse
-// (see videoBlobParams), so the test builds with the captured flags.
+// The capture had LTRP enabled, FEC disabled and VRAE:0 in the AVC bank; the
+// defaults differ (see videoBlobParams and avcFeatures), so the test builds with
+// the captured flags.
 const capturedVideoMediaBlobHex = "080110012a7f088182bae90810001a3f087b120a0801100118c387032000120a" +
 	"0801100218c387032000120a0801100118c387032000120a0801100218c38703" +
 	"20001a09464c533b53573a313b20011a2e0864120a0801100118c38703200012" +
@@ -41,13 +42,23 @@ func TestBuildVideoMediaBlobMatchesCapture(t *testing.T) {
 	require.NoError(t, err)
 
 	params := defaultVideoBlobParams(capturedVideoSessionID)
-	params.ltrpEnabled = true // the capture had LTRP on
-	params.fecEnabled = false // ... and FEC off
+	params.ltrpEnabled = true               // the capture had LTRP on
+	params.fecEnabled = false               // ... and FEC off
+	params.avcFeatures = "FLS;VRAE:0;SW:1;" // ... and VRAE:0 in the AVC bank
 
 	built := buildVideoMediaBlob(params)
 
 	require.Equal(t, len(captured), len(built), "media blob length drifted from the captured offer")
 	assert.Equal(t, hex.EncodeToString(captured), hex.EncodeToString(built))
+}
+
+// TestDefaultVideoMediaBlobOmitsVRAE pins the one deliberate departure from the
+// capture: the AVC bank goes out without VRAE:0.
+func TestDefaultVideoMediaBlobOmitsVRAE(t *testing.T) {
+	built := buildVideoMediaBlob(defaultVideoBlobParams(capturedVideoSessionID))
+
+	assert.NotContains(t, string(built), "VRAE:0")
+	assert.Equal(t, 2, bytes.Count(built, []byte("FLS;SW:1;")), "both codec banks carry the same flags")
 }
 
 func TestVarintPadded(t *testing.T) {

@@ -28,9 +28,10 @@ const (
 	resEntryCodecCapID = 50115
 
 	// hevcFeatures and avcFeatures declare per-bank capability flags. "FLS;" is
-	// the AVConference framing marker.
+	// the AVConference framing marker. Xcode also sends VRAE:0 in the AVC bank;
+	// it is left out because pymobiledevice3 measured frame drops with it.
 	hevcFeatures = "FLS;SW:1;"
-	avcFeatures  = "FLS;VRAE:0;SW:1;"
+	avcFeatures  = "FLS;SW:1;"
 
 	// RTP payload types for the two codec banks we advertise. The device picks
 	// one and reports it back as RxPayloadType; on iOS 27 it chooses AVC.
@@ -84,6 +85,7 @@ type videoBlobParams struct {
 	allowRTCPFB   bool
 	ltrpEnabled   bool
 	fecEnabled    bool
+	avcFeatures   string
 	tilesPerFrame uint64
 	timestamp     uint64
 }
@@ -92,6 +94,7 @@ func defaultVideoBlobParams(sessionID uint32) videoBlobParams {
 	return videoBlobParams{
 		sessionID:     sessionID,
 		fecEnabled:    true,
+		avcFeatures:   avcFeatures,
 		tilesPerFrame: 1,
 		timestamp:     capturedVideoTimestamp,
 	}
@@ -162,7 +165,7 @@ func videoSettings(params videoBlobParams) []byte {
 	settings := fieldVarintPadded(nil, 1, uint64(params.sessionID), 5)
 	settings = fieldBool(settings, 2, params.allowRTCPFB)
 	settings = fieldBytes(settings, 3, codecBank(hevcPayloadType, hevcFeatures, 1, 4))
-	settings = fieldBytes(settings, 3, codecBank(avcPayloadType, avcFeatures, 14, 2))
+	settings = fieldBytes(settings, 3, codecBank(avcPayloadType, params.avcFeatures, 14, 2))
 	if params.tilesPerFrame != 1 {
 		settings = fieldVarint(settings, 6, params.tilesPerFrame)
 	}
