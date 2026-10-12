@@ -44,6 +44,9 @@ type Service struct {
 	conn     xpcConn
 	deviceID string
 	mutex    sync.Mutex
+	// LastAnswer is the device's reply to the last StartVideoStream: it carries
+	// the RTCP port and the SSRCs a caller needs to send feedback.
+	LastAnswer map[string]interface{}
 }
 
 // xpcConn is the subset of *xpc.Connection used here, so the request/reply logic
@@ -121,7 +124,9 @@ func (s *Service) StartVideoStream(ctx context.Context, req VideoStreamRequest) 
 		"type":         "video",
 	}
 
-	if _, err := s.invoke(ctx, featureStartMediaStream, actionMediaStreamStart, input); err != nil {
+	output, err := s.invoke(ctx, featureStartMediaStream, actionMediaStreamStart, input)
+	s.LastAnswer = output
+	if err != nil {
 		// The id comes back even on failure: the device may have started the
 		// stream anyway, and stopping it needs this id. A failure closes this
 		// Service's connection, so the stop has to go out on a new one.
